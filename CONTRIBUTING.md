@@ -1,126 +1,98 @@
-# Contributing to Personal Notes
+# Contributing
 
-Thank you for your interest in contributing to the Personal Notes project! This document provides guidelines for contributing to the template repository.
+Thank you for your interest in contributing to Personal Notes!
 
 ## Development Setup
 
 ### Prerequisites
 
-- Python 3.13 or higher
+- Python 3.13+
 - Git
-- UV (Python package manager)
+- [UV](https://docs.astral.sh/uv/) package manager
 
-### Getting Started
-
-1. Fork and clone the repository:
+### Setup
 
 ```bash
 git clone https://github.com/YOUR-USERNAME/personal-notes.git
 cd personal-notes
-```
-
-2. Install dependencies:
-
-```bash
 uv sync --all-groups
 ```
 
-3. Install pre-commit hooks (optional but recommended):
+### Install Pre-commit Hooks (Optional)
 
 ```bash
-uv run --group lint pre-commit install
+uv run pre-commit install
 ```
 
-## Development Workflow
+Note: Pre-commit hooks only run on manual commits, not when using `uv run sync`.
 
-### Making Changes
-
-1. Create a new branch for your feature or fix:
+## Running Tests
 
 ```bash
-git checkout -b feature/your-feature-name
+# Run all tests
+uv run pytest
+
+# Run with verbose output
+uv run pytest -v
+
+# Run specific test file
+uv run pytest src/tests/test_sync.py
 ```
-
-2. Make your changes to the code
-
-3. Run linting and formatting:
-
-```bash
-uv run --group lint ruff check src/
-uv run --group lint ruff format src/
-```
-
-4. If you've added tests, run them:
-
-```bash
-uv run --group dev pytest tests/ -v
-```
-
-5. Commit your changes:
-
-```bash
-git add .
-git commit -m "Description of your changes"
-```
-
-6. Push to your fork:
-
-```bash
-git push origin feature/your-feature-name
-```
-
-7. Open a Pull Request on GitHub
 
 ## Code Style
 
 This project uses [Ruff](https://docs.astral.sh/ruff/) for linting and formatting.
 
-- Follow PEP 8 style guidelines
-- Use type hints where appropriate
-- Keep functions focused and small
-- Write descriptive commit messages
-
-### Running Formatters
-
-Format code automatically:
-
 ```bash
-uv run --group lint ruff format
+# Format code
+uv run ruff format
+
+# Check for issues
+uv run ruff check
+
+# Fix auto-fixable issues
+uv run ruff check --fix
 ```
 
-Check for linting issues:
+## Pull Request Process
 
-```bash
-uv run --group lint ruff check
+1. Create a branch: `git checkout -b feature/your-feature`
+2. Make your changes
+3. Run tests: `uv run pytest`
+4. Format code: `uv run ruff format`
+5. Commit: `git commit -m "Description"`
+6. Push: `git push origin feature/your-feature`
+7. Open a Pull Request
+
+## Code Guidelines
+
+- Use type hints
+- Keep functions small and focused
+- Write tests for new features
+- Update documentation as needed
+- Follow existing code patterns
+
+## Project Structure
+
+```
+src/
+├── core.py          # Shared utilities (CliResult, file I/O)
+├── new_note.py      # Note creation logic
+├── sync.py          # Git sync logic
+└── tests/
+    ├── conftest.py           # Shared test fixtures
+    ├── test_new_note.py      # Note creation tests
+    ├── test_sync.py          # Sync tests
+    └── test_integration.py   # End-to-end tests
 ```
 
-Fix auto-fixable linting issues:
+## Testing Guidelines
 
-```bash
-uv run --group lint ruff check --fix
-```
+- Use pytest fixtures from `conftest.py`
+- Test both success and error cases
+- Use descriptive test names
+- Keep tests focused on one thing
 
-## Testing
+## Questions?
 
-### Writing Tests
-
-- Place tests in the `tests/` directory
-- Use pytest for testing
-- Aim for good test coverage
-- Test edge cases and error conditions
-
-### Running Tests
-
-Run all tests:
-
-```bash
-uv run --group dev pytest
-```
-
-## Pull Request Guidelines
-
-1. **Title**: Use a clear, descriptive title
-2. **Description**: Explain what changes you made and why
-3. **Tests**: Add or update tests as needed
-4. **Documentation**: Update README or docs if needed
-5. **Breaking Changes**: Clearly note any breaking changes
+Open an issue for questions or suggestions.
