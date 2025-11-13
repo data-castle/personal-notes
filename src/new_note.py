@@ -6,24 +6,8 @@ import re
 import secrets
 import sys
 from datetime import datetime
-from dataclasses import dataclass
-from typing import Generic, TypeVar
 
-T = TypeVar("T")
-
-
-@dataclass
-class CliResult(Generic[T]):
-    value: T | None
-    code: int
-
-    def is_error(self) -> bool:
-        return self.code != 0
-
-    def unwrap(self) -> T:
-        """Get the value, asserting it's not None. Use after checking is_error()."""
-        assert self.value is not None, "Cannot unwrap an error result"
-        return self.value
+from src.core import CliResult, print_error
 
 
 def _parse_args() -> argparse.Namespace:
@@ -61,7 +45,7 @@ def _get_template_path(root_dir: pathlib.Path) -> CliResult[pathlib.Path]:
     template_path = root_dir / "templates" / "note_template.md"
 
     if not template_path.exists():
-        print(f"Error: Template not found at {template_path}", file=sys.stderr)
+        print_error(f"Template not found at {template_path}")
         return CliResult(None, 1)
     return CliResult(template_path, 0)
 
