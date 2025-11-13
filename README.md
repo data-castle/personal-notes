@@ -1,150 +1,99 @@
 # Personal Notes
 
 A simple, git-based personal note-taking system with automatic timestamping and syncing.
-Store your knowledge, track it with git, and optionally publish with GitHub Pages.
 
 ## Features
 
-- **Timestamped Notes**: Every note includes creation and last-updated timestamps
-- **Template-Based**: Consistent structure for all notes
-- **Year-Based Organization**: Notes organized by year for easy navigation
-- **Auto-Sync**: Automatic timestamp updates and git syncing
-- **GitHub Pages Ready**: Optional publishing with Jekyll
+- Template-based notes with consistent structure
+- Automatic timestamps (creation and last updated)
+- Year-based organization (`notes/YYYY/`)
+- Git sync that only commits note files
+- Optional GitHub Pages publishing
 
 ## Quick Start
 
 ### 1. Use This Template
 
-Click the "Use this template" button at the top of this repository to create your own personal notes repository.
+Click "Use this template" at the top of this repository to create your own personal notes.
 
-### 2. Clone Your Repository
+### 2. Clone and Setup
 
 ```bash
 git clone https://github.com/YOUR-USERNAME/YOUR-REPO-NAME.git
 cd YOUR-REPO-NAME
-```
-
-### 3. Install Dependencies
-
-This project uses [UV](https://docs.astral.sh/uv/) for Python package management:
-
-```bash
-# Install project dependencies
 uv sync
 ```
 
-### 4. Create Your First Note
+### 3. Create a Note
 
 ```bash
 uv run new-note "My First Note"
 ```
 
-This creates a new note at `notes/YYYY/YYYY-MM-DD-my-first-note.md` with the template structure.
+Options:
+```bash
+uv run new-note "My Note" --tags "python,coding" --category "development"
+```
 
-### 5. Edit Your Note
-
-Open the generated note in your favorite editor and add your content.
-
-### 6. Sync Your Notes
+### 4. Sync Your Notes
 
 ```bash
 uv run sync
 ```
 
-This will:
-1. Update the "Last updated" timestamp in modified notes
-2. Stage all changes
-3. Commit with an auto-generated message
-4. Push to remote
+This will update timestamps, commit, and push to git.
 
-## Usage
+## Daily Usage
 
-### Creating Notes
-
-Basic usage:
-
+### Create a new note
 ```bash
-uv run new-note "Your Note Title"
+uv run new-note "Note Title"
 ```
 
-With options:
+### Edit your notes
+Open and edit files in `notes/YYYY/` with your favorite editor.
 
-```bash
-uv run new-note "Your Note Title" --tags "python,coding" --category "development" --summary "A quick note about Python"
-```
-
-### Syncing Notes
-
-Sync with auto-generated commit message:
-
+### Sync changes
 ```bash
 uv run sync
 ```
 
-Sync with custom commit message:
+The sync command:
+- Updates "Last updated" timestamps
+- Only commits files in `notes/` folder
+- Auto-generates commit messages
+- Pushes to remote
 
-```bash
-uv run sync -m "Weekly review and updates"
-```
-
-Commit without pushing:
-
+### Sync without pushing
 ```bash
 uv run sync --no-push
 ```
 
-## Note Template
-
-Each note includes:
-
-- **Title and metadata**: Date, tags, summary
-- **Context section**: Background information
-- **Notes section**: Main content
-- **References**: Links and resources
-- **Reflections**: Thoughts and insights
-
-## GitHub Pages (Optional)
-
-To publish your notes as a website:
-
-1. Go to your repository settings
-2. Navigate to "Pages" in the sidebar
-3. Select source: "Deploy from a branch"
-4. Select branch: `main` and folder: `/` (root)
-5. Click "Save"
-
-Your notes will be published at `https://YOUR-USERNAME.github.io/YOUR-REPO-NAME/`
-
-Note: Consider making your repository private if you want private notes with public pages.
-
-## Development
-
-### Running Tests
-
+### Custom commit message
 ```bash
-uv run pytest
+uv run sync -m "Your message"
 ```
-
-## Customization
-
-### Modify the Template
-
-Edit `templates/note_template.md` to customize the structure of new notes.
-
-### Change Jekyll Theme
-
-Edit `_config.yml` to change the theme or other Jekyll settings.
 
 ## Requirements
 
 - Python 3.13+
 - Git
-- UV (Python package manager)
+- [UV](https://docs.astral.sh/uv/) package manager
 
-## License
+## GitHub Pages (Optional)
 
-MIT License - see [LICENSE](LICENSE) for details.
+To publish your notes:
+1. Go to repository Settings → Pages
+2. Select source: "Deploy from a branch"
+3. Select branch: `main`, folder: `/` (root)
+4. Click "Save"
+
+Your notes will be at `https://YOUR-USERNAME.github.io/YOUR-REPO-NAME/`
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+
+## License
+
+MIT License
