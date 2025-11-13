@@ -1,7 +1,6 @@
 import sys
 from unittest.mock import patch
 
-import git
 import pytest
 
 from src.sync import (
@@ -10,20 +9,6 @@ from src.sync import (
     _update_timestamp_in_note,
     main,
 )
-
-
-@pytest.fixture
-def git_repo_with_commit(tmp_path):
-    repo = git.Repo.init(tmp_path)
-    repo.config_writer().set_value("user", "name", "Test User").release()
-    repo.config_writer().set_value("user", "email", "test@example.com").release()
-
-    readme = tmp_path / "README.md"
-    readme.write_text("# Test")
-    repo.index.add([str(readme)])
-    repo.index.commit("Initial commit")
-
-    return repo
 
 
 @pytest.mark.parametrize(
