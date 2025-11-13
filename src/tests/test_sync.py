@@ -201,3 +201,48 @@ def test_main_handles_no_changes_after_staging(tmp_path, git_repo_with_commit, c
     assert exit_code == 0
     captured = capsys.readouterr()
     assert "No notes to sync" in captured.out or "No changes to commit" in captured.out
+
+
+def test_sync_only_stages_notes_not_other_files(tmp_path, git_repo_with_commit, capsys):
+    notes_dir = tmp_path / "notes" / "2025"
+    notes_dir.mkdir(parents=True)
+    note_path = notes_dir / "test-note.md"
+    note_path.write_text(
+        """---
+title: "Test Note"
+---
+
+## Metadata
+- **Last updated:** 2025-01-13 10:00
+
+Content
+"""
+    )
+
+    # Create files OUTSIDE notes folder that should be ignored
+    other_file = tmp_path / "src" / "other.py"
+    other_file.parent.mkdir(parents=True, exist_ok=True)
+    other_file.write_text("# Some other file")
+
+    config_file = tmp_path / "_config.yml"
+    config_file.write_text("config: value")
+
+    with patch.object(sys, "argv", ["sync", "--no-push"]):
+        with patch("src.sync.get_root_dir", return_value=tmp_path):
+            exit_code = main()
+
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert "Found 1 modified note(s)" in captured.out
+
+    # Verify only the note was staged/committed
+    last_commit = list(git_repo_with_commit.iter_commits(max_count=1))[0]
+    committed_files = list(last_commit.stats.files.keys())
+
+    # Only the note should be in the commit
+    assert len(committed_files) == 1
+    assert "notes/2025/test-note.md" in committed_files[0]
+
+    # Other files should still be untracked
+    assert "src/other.py" in git_repo_with_commit.untracked_files
+    assert "_config.yml" in git_repo_with_commit.untracked_files
