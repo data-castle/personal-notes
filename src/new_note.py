@@ -9,6 +9,8 @@ from datetime import datetime
 
 from src.core import CliResult, print_error
 
+FILENAME_HASH_LENGTH = 3
+
 
 def _parse_args() -> argparse.Namespace:
     """Parse command-line arguments for creating a new note."""
@@ -54,7 +56,7 @@ def _create_filename(date: str, title: str) -> str:
     """Generate a filename with date, slugified title, and random hash."""
     if len(slug := _slugify(title)) == 0:
         slug = "untitled-note"
-    return f"{date}-{slug}-{secrets.token_hex(3)}.md"
+    return f"{date}-{slug}-{secrets.token_hex(FILENAME_HASH_LENGTH)}.md"
 
 
 def _create_note_path(
