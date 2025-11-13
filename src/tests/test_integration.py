@@ -2,7 +2,6 @@ import sys
 import time
 from unittest.mock import patch
 
-
 from src.new_note import main as new_note_main
 from src.sync import main as sync_main
 
