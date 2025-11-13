@@ -7,7 +7,7 @@ import secrets
 import sys
 from datetime import datetime
 
-from src.core import CliResult, print_error
+from src.core import CliResult, get_root_dir, print_error
 
 FILENAME_HASH_LENGTH = 3
 
@@ -113,7 +113,7 @@ def main() -> int:
     """Main entry point for creating a new timestamped note."""
     args = _parse_args()
 
-    root_dir = pathlib.Path(__file__).parent.parent
+    root_dir = get_root_dir()
     if (template_path := _get_template_path(root_dir)).is_error():
         return template_path.code
 
