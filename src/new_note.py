@@ -65,7 +65,7 @@ def _create_note_path(
     try:
         notes_dir.mkdir(parents=True, exist_ok=True)
     except OSError as e:
-        print(f"Error: Failed to create directory {notes_dir}: {e}", file=sys.stderr)
+        print_error(f"Failed to create directory {notes_dir}: {e}")
         return CliResult(None, 1)
 
     note_path = notes_dir / filename
