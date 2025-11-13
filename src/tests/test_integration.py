@@ -77,3 +77,28 @@ def test_integration_new_note_and_sync(
     final_content = note_path.read_text()
     assert "Modified content added here." in final_content
     assert final_content != first_sync_content
+
+    # Step 5: Delete the note
+    note_path.unlink()
+    assert not note_path.exists()
+
+    # Step 6: Third sync (should detect and commit deletion)
+    with patch.object(sys, "argv", ["sync", "--no-push"]):
+        with patch("src.sync.get_root_dir", return_value=tmp_path):
+            exit_code = sync_main()
+
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert "Found 1 modified note(s)" in captured.out
+    assert "Changes committed" in captured.out
+
+    # Verify third commit for deletion
+    commits = list(git_repo_with_commit.iter_commits(max_count=4))
+    assert len(commits) == 4  # README + 3 sync commits
+
+    # Verify the file is not in the repository anymore
+    assert not note_path.exists()
+    # Verify file is not in the git tree of the latest commit
+    tree = commits[0].tree
+    note_relative_path = str(note_path.relative_to(tmp_path))
+    assert note_relative_path not in [item.path for item in tree.traverse()]
