@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from git import Repo
+from git import Repo, diff as git_diff
 from git.exc import GitCommandError, InvalidGitRepositoryError
 
 from src.core import (
@@ -73,11 +73,26 @@ def _is_note_file(path_str: str) -> bool:
     return normalized_path.startswith("notes/") and normalized_path.endswith(".md")
 
 
-def _add_note_if_exists(path_str: str, notes_list: list[Path], repo_root: Path) -> None:
+def _add_note_if_exists(
+    path_str: str, notes_list: list[Path], repo_root: Path
+) -> list[Path]:
     """Add a note file path to the list if it exists and is not already present."""
     file_path = repo_root / path_str
     if file_path.exists() and file_path not in notes_list:
         notes_list.append(file_path)
+    return notes_list
+
+
+def _add_note_with_deletion(
+    diff: git_diff.Diff, notes_list: list[Path], repo_root: Path
+) -> list[Path]:
+    if not diff.deleted_file:
+        return _add_note_if_exists(diff.a_path, notes_list, repo_root)
+
+    file_path = repo_root / diff.a_path
+    if file_path not in notes_list:
+        notes_list.append(file_path)
+    return notes_list
 
 
 def _get_modified_notes(repo: Repo) -> list[Path]:
@@ -88,17 +103,17 @@ def _get_modified_notes(repo: Repo) -> list[Path]:
     # Get untracked files
     for item in repo.untracked_files:
         if _is_note_file(item):
-            _add_note_if_exists(item, modified_files, repo_root)
+            modified_files = _add_note_if_exists(item, modified_files, repo_root)
 
     # Get modified files from diff (unstaged changes)
     for diff in repo.index.diff(None):
         if _is_note_file(diff.a_path):
-            _add_note_if_exists(diff.a_path, modified_files, repo_root)
+            modified_files = _add_note_with_deletion(diff, modified_files, repo_root)
 
     # Get staged files
     for diff in repo.index.diff("HEAD"):
         if diff.a_path and _is_note_file(diff.a_path):
-            _add_note_if_exists(diff.a_path, modified_files, repo_root)
+            modified_files = _add_note_with_deletion(diff, modified_files, repo_root)
 
     return modified_files
 
@@ -140,7 +155,7 @@ def _update_note_timestamps(modified_notes: list[Path]) -> int:
     """Update timestamps in modified notes. Returns count of updated notes."""
     updated_count = 0
     for note in modified_notes:
-        if _update_timestamp_in_note(note):
+        if note.exists() and _update_timestamp_in_note(note):
             updated_count += 1
     return updated_count
 
