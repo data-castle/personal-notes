@@ -12,8 +12,7 @@ def test_integration_new_note_and_sync(
     """Full integration test: create note with new_note → sync → modify → sync again."""
     # Step 1: Create a new note using new_note
     with patch.object(sys, "argv", ["new_note", "Integration Test", "--tags", "test"]):
-        with patch("src.new_note.pathlib.Path") as mock_path:
-            mock_path.return_value.parent.parent = tmp_path
+        with patch("src.new_note.get_root_dir", return_value=tmp_path):
             exit_code = new_note_main()
 
     assert exit_code == 0

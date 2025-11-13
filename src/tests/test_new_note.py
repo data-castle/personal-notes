@@ -260,8 +260,7 @@ def test_main_creates_note_successfully(tmp_path, note_template, monkeypatch, ca
     monkeypatch.chdir(tmp_path)
 
     with patch.object(sys, "argv", ["new_note.py", "Integration Test"]):
-        with patch("src.new_note.pathlib.Path") as mock_path:
-            mock_path.return_value.parent.parent = tmp_path
+        with patch("src.new_note.get_root_dir", return_value=tmp_path):
             exit_code = main()
 
     assert exit_code == 0
@@ -287,8 +286,7 @@ def test_main_returns_error_when_template_missing(tmp_path, monkeypatch, capsys)
     monkeypatch.chdir(tmp_path)
 
     with patch.object(sys, "argv", ["new_note.py", "Test"]):
-        with patch("src.new_note.pathlib.Path") as mock_path:
-            mock_path.return_value.parent.parent = tmp_path
+        with patch("src.new_note.get_root_dir", return_value=tmp_path):
             exit_code = main()
 
     assert exit_code == 1
@@ -315,8 +313,7 @@ def test_main_creates_note_with_custom_metadata(
             "Custom summary",
         ],
     ):
-        with patch("src.new_note.pathlib.Path") as mock_path:
-            mock_path.return_value.parent.parent = tmp_path
+        with patch("src.new_note.get_root_dir", return_value=tmp_path):
             exit_code = main()
 
     assert exit_code == 0
