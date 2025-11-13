@@ -1,3 +1,5 @@
+[![Run Tests](https://github.com/data-castle/personal-notes/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/data-castle/personal-notes/actions/workflows/tests.yml)
+
 # Personal Notes
 
 A simple, git-based personal note-taking system with automatic timestamping and syncing.
