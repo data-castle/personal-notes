@@ -79,7 +79,7 @@ def _replace_template_placeholders(
     try:
         template_content = template_path.read_text(encoding="utf-8")
     except OSError as e:
-        print(f"Error: Failed to read template: {e}", file=sys.stderr)
+        print_error(f"Failed to read template: {e}")
         return CliResult(None, 1)
 
     note_content = template_content.replace("{{TITLE}}", args.title)
@@ -99,10 +99,10 @@ def _write_note_content(
         with note_path.open(mode="x", encoding="utf-8") as f:
             f.write(content)
     except FileExistsError:
-        print(f"Error: Note already exists at {note_path}", file=sys.stderr)
+        print_error(f"Note already exists at {note_path}")
         return CliResult(None, 1)
     except OSError as e:
-        print(f"Error: Failed to write note to {note_path}: {e}", file=sys.stderr)
+        print_error(f"Failed to write note to {note_path}: {e}")
         return CliResult(None, 1)
     return CliResult(note_path, 0)
 
