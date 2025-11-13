@@ -107,7 +107,9 @@ def _replace_template_placeholders(
     return CliResult(note_content, 0)
 
 
-def _write_note_content(note_path: pathlib.Path, content: str) -> CliResult[pathlib.Path]:
+def _write_note_content(
+    note_path: pathlib.Path, content: str
+) -> CliResult[pathlib.Path]:
     """Write note content to file using exclusive creation (prevents race conditions)."""
     try:
         with note_path.open(mode="x", encoding="utf-8") as f:
@@ -134,15 +136,19 @@ def main() -> int:
     time_str = now.strftime("%H:%M")
     year = now.strftime("%Y")
 
-    if (content := _replace_template_placeholders(
-        args, template_path.unwrap(), date_str, time_str
-    )).is_error():
+    if (
+        content := _replace_template_placeholders(
+            args, template_path.unwrap(), date_str, time_str
+        )
+    ).is_error():
         return content.code
 
     filename = _create_filename(date_str, args.title)
     if (note_path := _create_note_path(root_dir, filename, year)).is_error():
         return note_path.code
-    if (written_note := _write_note_content(note_path.unwrap(), content.unwrap())).is_error():
+    if (
+        written_note := _write_note_content(note_path.unwrap(), content.unwrap())
+    ).is_error():
         return written_note.code
 
     print(f"Created note: {written_note.unwrap()}")
