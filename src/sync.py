@@ -159,7 +159,8 @@ def _stage_notes(repo: Repo, notes: list[Path]) -> CliResult[None]:
 def _commit_changes(repo: Repo, message: str) -> CliResult[None]:
     """Commit staged changes with the given message."""
     try:
-        repo.index.commit(message)
+        # Skip pre-commit hooks to avoid interfering with user's workflow
+        repo.index.commit(message, skip_hooks=True)
         return CliResult(None, 0)
     except GitCommandError as e:
         print_error(f"Committing changes: {e}")
