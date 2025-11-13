@@ -118,22 +118,8 @@ def test_main_returns_zero_when_no_notes_modified(
     assert "No notes to sync" in captured.out
 
 
-def test_main_syncs_modified_notes(tmp_path, git_repo_with_commit, capsys):
-    notes_dir = tmp_path / "notes" / "2025"
-    notes_dir.mkdir(parents=True)
-    note_path = notes_dir / "test-note.md"
-    note_path.write_text(
-        """---
-title: "Test Note"
----
-
-## Metadata
-- **Created:** 2025-01-13 10:00
-- **Last updated:** 2025-01-13 10:00
-
-Content
-"""
-    )
+def test_main_syncs_modified_notes(tmp_path, git_repo_with_commit, create_note, capsys):
+    create_note(content="Content")
 
     with patch.object(sys, "argv", ["sync", "--no-push"]):
         with patch("src.sync.get_root_dir", return_value=tmp_path):
@@ -145,21 +131,10 @@ Content
     assert "Changes committed" in captured.out
 
 
-def test_main_with_custom_commit_message(tmp_path, git_repo_with_commit, capsys):
-    notes_dir = tmp_path / "notes" / "2025"
-    notes_dir.mkdir(parents=True)
-    note_path = notes_dir / "test-note.md"
-    note_path.write_text(
-        """---
-title: "Test Note"
----
-
-## Metadata
-- **Last updated:** 2025-01-13 10:00
-
-Content
-"""
-    )
+def test_main_with_custom_commit_message(
+    tmp_path, git_repo_with_commit, create_note, capsys
+):
+    create_note(content="Content")
 
     with patch.object(sys, "argv", ["sync", "-m", "Custom message", "--no-push"]):
         with patch("src.sync.get_root_dir", return_value=tmp_path):
@@ -188,21 +163,10 @@ def test_main_handles_no_changes_after_staging(tmp_path, git_repo_with_commit, c
     assert "No notes to sync" in captured.out or "No changes to commit" in captured.out
 
 
-def test_sync_only_stages_notes_not_other_files(tmp_path, git_repo_with_commit, capsys):
-    notes_dir = tmp_path / "notes" / "2025"
-    notes_dir.mkdir(parents=True)
-    note_path = notes_dir / "test-note.md"
-    note_path.write_text(
-        """---
-title: "Test Note"
----
-
-## Metadata
-- **Last updated:** 2025-01-13 10:00
-
-Content
-"""
-    )
+def test_sync_only_stages_notes_not_other_files(
+    tmp_path, git_repo_with_commit, create_note, capsys
+):
+    create_note(content="Content")
 
     # Create files OUTSIDE notes folder that should be ignored
     other_file = tmp_path / "src" / "other.py"

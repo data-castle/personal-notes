@@ -256,25 +256,8 @@ def test_parse_args_parses_all_arguments_together():
         assert args.summary == "Full test"
 
 
-def test_main_creates_note_successfully(tmp_path, monkeypatch, capsys):
+def test_main_creates_note_successfully(tmp_path, note_template, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
-
-    template_dir = tmp_path / "templates"
-    template_dir.mkdir()
-    template_file = template_dir / "note_template.md"
-    template_file.write_text(
-        """---
-title: "{{TITLE}}"
-date: {{DATE}}
-tags: [{{TAGS}}]
-summary: "{{SHORT_DESCRIPTION}}"
----
-
-## Metadata
-- **Created:** {{DATE}} {{TIME}}
-- **Category:** {{CATEGORY}}
-"""
-    )
 
     with patch.object(sys, "argv", ["new_note.py", "Integration Test"]):
         with patch("src.new_note.pathlib.Path") as mock_path:
@@ -313,15 +296,10 @@ def test_main_returns_error_when_template_missing(tmp_path, monkeypatch, capsys)
     assert "Error: Template not found" in captured.err
 
 
-def test_main_creates_note_with_custom_metadata(tmp_path, monkeypatch, capsys):
+def test_main_creates_note_with_custom_metadata(
+    tmp_path, note_template, monkeypatch, capsys
+):
     monkeypatch.chdir(tmp_path)
-
-    template_dir = tmp_path / "templates"
-    template_dir.mkdir()
-    template_file = template_dir / "note_template.md"
-    template_file.write_text(
-        "{{TITLE}} - {{TAGS}} - {{CATEGORY}} - {{SHORT_DESCRIPTION}}"
-    )
 
     with patch.object(
         sys,
