@@ -145,10 +145,11 @@ def _update_note_timestamps(modified_notes: list[Path]) -> int:
     return updated_count
 
 
-def _stage_all_changes(repo: Repo) -> CliResult[None]:
-    """Stage all changes in the repository."""
+def _stage_notes(repo: Repo, notes: list[Path]) -> CliResult[None]:
+    """Stage only the specified note files."""
     try:
-        repo.git.add(".")
+        for note in notes:
+            repo.git.add(str(note))
         return CliResult(None, 0)
     except GitCommandError as e:
         print_error(f"Staging changes: {e}")
@@ -205,7 +206,7 @@ def main() -> int:
         print(f"Updated timestamps in {updated_count} note(s)")
 
     print("Staging changes...")
-    if (stage_result := _stage_all_changes(repo)).is_error():
+    if (stage_result := _stage_notes(repo, modified_notes)).is_error():
         return stage_result.code
 
     if not repo.is_dirty(untracked_files=True):
