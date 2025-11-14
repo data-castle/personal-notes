@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 
 from src.sync import (
-    _add_note_if_exists,
+    _add_note_to_list,
     _is_note_file,
     _update_timestamp_in_note,
     main,
@@ -26,33 +26,35 @@ def test_is_note_file(path_str, expected):
     assert _is_note_file(path_str) == expected
 
 
-def test_add_note_if_exists_adds_existing_file(tmp_path):
+def test_add_note_to_list_adds_existing_file(tmp_path):
     note_path = tmp_path / "test.md"
     note_path.write_text("test content")
     notes_list = []
 
-    _add_note_if_exists("test.md", notes_list, tmp_path)
+    result = _add_note_to_list("test.md", notes_list, tmp_path, require_exists=True)
 
-    assert len(notes_list) == 1
-    assert notes_list[0] == note_path
+    assert len(result) == 1
+    assert result[0] == note_path
 
 
-def test_add_note_if_exists_skips_nonexistent_file(tmp_path):
+def test_add_note_to_list_skips_nonexistent_file(tmp_path):
     notes_list = []
 
-    _add_note_if_exists("nonexistent.md", notes_list, tmp_path)
+    result = _add_note_to_list(
+        "nonexistent.md", notes_list, tmp_path, require_exists=True
+    )
 
-    assert len(notes_list) == 0
+    assert len(result) == 0
 
 
-def test_add_note_if_exists_skips_duplicate(tmp_path):
+def test_add_note_to_list_skips_duplicate(tmp_path):
     note_path = tmp_path / "test.md"
     note_path.write_text("test content")
     notes_list = [note_path]
 
-    _add_note_if_exists("test.md", notes_list, tmp_path)
+    result = _add_note_to_list("test.md", notes_list, tmp_path, require_exists=True)
 
-    assert len(notes_list) == 1
+    assert len(result) == 1
 
 
 def test_update_timestamp_in_note_updates_timestamp(tmp_path):
@@ -71,7 +73,8 @@ Content here.
 
     result = _update_timestamp_in_note(note_path)
 
-    assert result is True
+    assert not result.is_error()
+    assert result.unwrap() is True
     updated_content = note_path.read_text()
     assert "2025-01-13 10:00" in updated_content
     assert updated_content != original_content
@@ -83,7 +86,8 @@ def test_update_timestamp_in_note_returns_false_when_no_timestamp_found(tmp_path
 
     result = _update_timestamp_in_note(note_path)
 
-    assert result is False
+    assert not result.is_error()
+    assert result.unwrap() is False
 
 
 def test_update_timestamp_in_note_handles_missing_file(tmp_path, capsys):
@@ -91,7 +95,8 @@ def test_update_timestamp_in_note_handles_missing_file(tmp_path, capsys):
 
     result = _update_timestamp_in_note(note_path)
 
-    assert result is False
+    assert not result.is_error()
+    assert result.unwrap() is False
     captured = capsys.readouterr()
     assert "Warning" in captured.err
 
@@ -160,7 +165,7 @@ def test_main_handles_no_changes_after_staging(tmp_path, git_repo_with_commit, c
 
     assert exit_code == 0
     captured = capsys.readouterr()
-    assert "No notes to sync" in captured.out or "No changes to commit" in captured.out
+    assert "Successfully pushed commits!" in captured.out
 
 
 def test_sync_only_stages_notes_not_other_files(

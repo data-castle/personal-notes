@@ -1,6 +1,7 @@
 """Sync notes by updating timestamps, committing, and pushing to remote."""
 
 import argparse
+import os
 import re
 import sys
 from datetime import datetime
@@ -38,8 +39,8 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _update_timestamp_in_note(file_path: Path) -> bool:
-    """Update the 'Last updated' timestamp in a note file. Returns True if updated."""
+def _update_timestamp_in_note(file_path: Path) -> CliResult[bool]:
+    """Update the 'Last updated' timestamp in a note file."""
     try:
         content = read_file_utf8(file_path)
         now = datetime.now()
@@ -55,65 +56,66 @@ def _update_timestamp_in_note(file_path: Path) -> bool:
 
         if count > 0:
             write_file_utf8(file_path, updated_content)
-            return True
+            return CliResult(True, 0)
 
-        return False
+        return CliResult(False, 0)
 
-    except Exception as e:
+    except (OSError, IOError) as e:
         print(
             f"Warning: Could not update timestamp in {file_path}: {e}", file=sys.stderr
         )
-        return False
+        return CliResult(False, 0)
 
 
 def _is_note_file(path_str: str) -> bool:
     """Check if a path string represents a note markdown file."""
-    # Normalize path separators for cross-platform compatibility
-    normalized_path = path_str.replace("\\", "/")
-    return normalized_path.startswith("notes/") and normalized_path.endswith(".md")
+    path = Path(path_str)
+    return (
+        (len(path.parts) > 0) and (path.parts[0] == "notes") and (path.suffix == ".md")
+    )
 
 
-def _add_note_if_exists(
-    path_str: str, notes_list: list[Path], repo_root: Path
+def _add_note_to_list(
+    path_str: str, notes_list: list[Path], repo_root: Path, require_exists: bool = True
 ) -> list[Path]:
     """Add a note file path to the list if it exists and is not already present."""
     file_path = repo_root / path_str
-    if file_path.exists() and file_path not in notes_list:
-        notes_list.append(file_path)
+    if file_path not in notes_list:
+        if not require_exists or file_path.exists():
+            notes_list.append(file_path)
     return notes_list
 
 
-def _add_note_with_deletion(
+def _add_note_from_diff(
     diff: git_diff.Diff, notes_list: list[Path], repo_root: Path
 ) -> list[Path]:
-    if not diff.deleted_file:
-        return _add_note_if_exists(diff.a_path, notes_list, repo_root)
-
-    file_path = repo_root / diff.a_path
-    if file_path not in notes_list:
-        notes_list.append(file_path)
-    return notes_list
+    """Add a note from a git diff to the list, handling deletions."""
+    return _add_note_to_list(
+        diff.a_path, notes_list, repo_root, require_exists=not diff.deleted_file
+    )
 
 
 def _get_modified_notes(repo: Repo) -> list[Path]:
     """Get list of modified markdown files in notes/ directory."""
-    modified_files = []
+    modified_files: list[Path] = []
     repo_root = Path(repo.working_dir)
 
     # Get untracked files
     for item in repo.untracked_files:
         if _is_note_file(item):
-            modified_files = _add_note_if_exists(item, modified_files, repo_root)
+            modified_files = _add_note_to_list(
+                item, modified_files, repo_root, require_exists=True
+            )
 
     # Get modified files from diff (unstaged changes)
     for diff in repo.index.diff(None):
         if _is_note_file(diff.a_path):
-            modified_files = _add_note_with_deletion(diff, modified_files, repo_root)
+            modified_files = _add_note_from_diff(diff, modified_files, repo_root)
 
     # Get staged files
     for diff in repo.index.diff("HEAD"):
         if diff.a_path and _is_note_file(diff.a_path):
-            modified_files = _add_note_with_deletion(diff, modified_files, repo_root)
+            modified_files = _add_note_from_diff(diff, modified_files, repo_root)
 
     return modified_files
 
@@ -131,7 +133,7 @@ def _generate_commit_message(modified_files: list[Path]) -> str:
         try:
             content = read_file_utf8(modified_files[0])
             title_match = re.search(r'^title:\s*"(.+)"', content, re.MULTILINE)
-            if title_match:
+            if title_match is not None:
                 title = title_match.group(1)
                 return f"Update note: {title}"
         except Exception:
@@ -151,51 +153,165 @@ def _get_repository(root_dir: Path) -> CliResult[Repo]:
         return CliResult(None, 1)
 
 
-def _update_note_timestamps(modified_notes: list[Path]) -> int:
-    """Update timestamps in modified notes. Returns count of updated notes."""
+def _update_note_timestamps(modified_notes: list[Path]) -> CliResult[int]:
+    """Update timestamps in modified notes. Returns CliResult with count of updated notes."""
     updated_count = 0
     for note in modified_notes:
-        if note.exists() and _update_timestamp_in_note(note):
+        if not note.exists():
+            continue
+        result = _update_timestamp_in_note(note)
+        if not result.is_error() and result.unwrap():
             updated_count += 1
-    return updated_count
+    return CliResult(updated_count, 0)
 
 
-def _stage_notes(repo: Repo, notes: list[Path]) -> CliResult[None]:
-    """Stage only the specified note files."""
+def _validate_note_path(note_path: Path, repo_root: Path) -> bool:
+    """Validate that a note path is safe and within the repository."""
+    try:
+        abs_note_path = note_path.resolve()
+        abs_repo_root = repo_root.resolve()
+        abs_note_path.relative_to(abs_repo_root)
+
+        # Additional check: path should be under notes/ directory
+        rel_path = (
+            note_path.relative_to(repo_root) if note_path.is_absolute() else note_path
+        )
+        return len(rel_path.parts) > 0 and rel_path.parts[0] == "notes"
+    except (ValueError, OSError):
+        return False
+
+
+def _stage_notes(repo: Repo, notes: list[Path], repo_root: Path) -> CliResult[bool]:
+    """Stage only the specified note files with path validation."""
     try:
         for note in notes:
+            if not _validate_note_path(note, repo_root):
+                print_error(f"Invalid note path: {note}")
+                return CliResult(False, 1)
             repo.git.add(str(note))
-        return CliResult(None, 0)
+        return CliResult(True, 0)
     except GitCommandError as e:
         print_error(f"Staging changes: {e}")
-        return CliResult(None, 1)
+        return CliResult(False, 1)
 
 
-def _commit_changes(repo: Repo, message: str) -> CliResult[None]:
-    """Commit staged changes with the given message."""
+def _commit_changes(repo: Repo, message: str) -> CliResult[bool]:
+    """Commit staged changes with the given message.
+
+    Skips formatter/linter hooks but keeps security checks:
+    - Skipped: ruff, ruff-format, trailing-whitespace, end-of-file-fixer
+    - Runs: check-docstring-first, check-merge-conflict, check-toml, requirements-txt-fixer
+    """
     try:
-        # Skip pre-commit hooks to avoid interfering with user's workflow
-        repo.index.commit(message, skip_hooks=True)
-        return CliResult(None, 0)
+        env = os.environ.copy()
+        env["SKIP"] = "ruff,ruff-format,trailing-whitespace,end-of-file-fixer"
+        with repo.git.custom_environment(**env):
+            repo.index.commit(message, skip_hooks=False)
+
+        return CliResult(True, 0)
     except GitCommandError as e:
         print_error(f"Committing changes: {e}")
-        return CliResult(None, 1)
+        return CliResult(False, 1)
 
 
-def _push_to_remote(repo: Repo) -> CliResult[None]:
+def _has_unpushed_commits(repo: Repo) -> bool:
+    """Check if there are local commits not pushed to remote.
+
+    Returns:
+        True if there are unpushed commits, False otherwise
+    """
+    try:
+        current_branch = repo.active_branch
+        branch_name = current_branch.name
+
+        if current_branch.tracking_branch() is None:
+            # No remote tracking branch - consider it as having unpushed commits if we have commits
+            return len(list(repo.iter_commits(max_count=1))) > 0
+
+        # Compare local and remote branches
+        remote_branch = current_branch.tracking_branch().name
+        commits_ahead = list(repo.iter_commits(f"{remote_branch}..{branch_name}"))
+        return len(commits_ahead) > 0
+    except (ValueError, GitCommandError):
+        # If we can't determine, assume no unpushed commits
+        return False
+
+
+def _push_to_remote(repo: Repo) -> CliResult[bool]:
     """Push commits to the remote origin."""
     try:
         origin = repo.remote(name="origin")
         origin.push()
-        return CliResult(None, 0)
+        return CliResult(True, 0)
     except GitCommandError as e:
         print_error(f"Pushing to remote: {e}")
-        print("Commit was successful but push failed. Try running 'git push' manually.")
-        return CliResult(None, 1)
-    except ValueError:
-        print_error("No remote named 'origin' found")
-        print("Commit was successful but push failed. Configure a remote first.")
-        return CliResult(None, 1)
+        print("Push failed. Run sync again to retry pushing.")
+        return CliResult(False, 1)
+
+
+def _handle_no_modified_notes(repo: Repo, should_push: bool) -> int:
+    """Handle case when no modified notes are found.
+
+    Args:
+        repo: Git repository instance
+        should_push: Whether to attempt pushing (False if --no-push flag set)
+
+    Returns:
+        Exit code (0 for success, 1 for failure)
+    """
+    # Check if there are unpushed commits to push
+    if should_push and _has_unpushed_commits(repo):
+        print("No modified notes, but found unpushed commits")
+        print("Pushing to remote...")
+        if (push_result := _push_to_remote(repo)).is_error():
+            return push_result.code
+        print("Successfully pushed commits!")
+        return 0
+
+    print("No notes to sync")
+    return 0
+
+
+def _sync_modified_notes(
+    repo: Repo, modified_notes: list[Path], root_dir: Path, custom_message: str | None
+) -> CliResult[bool]:
+    """Update timestamps, stage, and commit modified notes.
+
+    Args:
+        repo: Git repository instance
+        modified_notes: List of modified note files
+        root_dir: Root directory of the repository
+        custom_message: Optional custom commit message
+
+    Returns:
+        CliResult with True if changes were committed, False if no changes to commit
+    """
+    # Update timestamps
+    print("Updating timestamps...")
+    timestamp_result = _update_note_timestamps(modified_notes)
+    if not timestamp_result.is_error():
+        updated_count = timestamp_result.unwrap()
+        if updated_count > 0:
+            print(f"Updated timestamps in {updated_count} note(s)")
+
+    # Stage changes
+    print("Staging changes...")
+    if (stage_result := _stage_notes(repo, modified_notes, root_dir)).is_error():
+        return stage_result
+
+    # Check if there are staged changes
+    staged_diff = repo.index.diff("HEAD")
+    if len(staged_diff) == 0:
+        print("No changes to commit")
+        return CliResult(False, 0)
+
+    # Commit changes
+    commit_message = custom_message or _generate_commit_message(modified_notes)
+    print(f"Committing: {commit_message}")
+    if (commit_result := _commit_changes(repo, commit_message)).is_error():
+        return commit_result
+
+    return CliResult(True, 0)
 
 
 def main() -> int:
@@ -210,31 +326,22 @@ def main() -> int:
     print("Checking for modified notes...")
     modified_notes = _get_modified_notes(repo)
 
-    if not modified_notes:
-        print("No notes to sync")
-        return 0
+    if len(modified_notes) == 0:
+        return _handle_no_modified_notes(repo, not args.no_push)
 
     print(f"Found {len(modified_notes)} modified note(s)")
 
-    print("Updating timestamps...")
-    updated_count = _update_note_timestamps(modified_notes)
-    if updated_count > 0:
-        print(f"Updated timestamps in {updated_count} note(s)")
+    # Sync modified notes (update timestamps, stage, commit)
+    sync_result = _sync_modified_notes(repo, modified_notes, root_dir, args.message)
+    if sync_result.is_error():
+        return sync_result.code
 
-    print("Staging changes...")
-    if (stage_result := _stage_notes(repo, modified_notes)).is_error():
-        return stage_result.code
-
-    if not repo.is_dirty(untracked_files=True):
-        print("No changes to commit")
+    committed = sync_result.unwrap()
+    if not committed:
+        # No changes were actually committed
         return 0
 
-    commit_message = args.message or _generate_commit_message(modified_notes)
-    print(f"Committing: {commit_message}")
-
-    if (commit_result := _commit_changes(repo, commit_message)).is_error():
-        return commit_result.code
-
+    # Push to remote if requested
     if not args.no_push:
         print("Pushing to remote...")
         if (push_result := _push_to_remote(repo)).is_error():
