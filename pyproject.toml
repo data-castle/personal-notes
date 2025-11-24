@@ -28,7 +28,7 @@ sync = "src.sync:main"
 [dependency-groups]
 lint = [
     "pre-commit==4.4.0",
-    "ruff==0.14.5",
+    "ruff==0.14.6",
 ]
 dev = [
     "pytest==9.0.1",
